@@ -20,6 +20,36 @@
         "market_position": "{{strategy.market_position}}",
         "market_position_size": {{strategy.market_position_size}},
         "prev_market_position": "{{strategy.prev_market_position}}",
-        "prev_market_position_size": {{strategy.prev_market_position_size}}
+        "prev_market_position_size": {{strategy.prev_market_position_size}},
+        "alert_message": {{strategy.order.alert_message}}
     }
 }
+
+
+{
+"passphrase": "abcdefgh",
+"time": "2022-08-08T15:16:50Z",
+"exchange": "BINANCE",
+"ticker": "ETHUSDTPERP",
+"bar": {
+"time": "2022-08-08T15:16:00Z",
+"open": 1794.6,
+"high": 1795.59,
+"low": 1789,
+"close": 1789,
+"volume": 13627.336
+},
+"strategy": {
+"position_size": -0.276,
+"order_action": "buy",
+"order_contracts": 0.092,
+"order_price": 1789.07,
+"order_id": "xS1_1",
+"market_position": "short",
+"market_position_size": 0.276,
+"prev_market_position": "short",
+"prev_market_position_size": 0.368,
+"alert_message": {"origOrderId": "L1_0","orderType": "TAKE_PROFIT1"}
+}
+}
+

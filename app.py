@@ -219,7 +219,7 @@ def webhook():
                            "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
         order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',
                             "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-        order_params_TP2 = {"_side": oppsite_side, "_quantity": quantity - halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',
+        order_params_TP2 = {"_side": oppsite_side, "_quantity": round_down(quantity - halfQty, stepsize), "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',
                             "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
         order_response_SL = order(**order_params_SL)
         order_response_TP1 = order(**order_params_TP1)

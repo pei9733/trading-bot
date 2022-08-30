@@ -137,7 +137,7 @@ def test():
 @app.route('/test2', methods=['POST'])
 def test2():
     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
-    return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
+    # return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
     return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
     data = json.loads(request.data)
     return data
@@ -186,17 +186,20 @@ def webhook():
         TP1 = 0.0
         TP2 = 0.0
         # return data
-        last_price = float(client.futures_ticker(
-            symbol=symbol)['lastPrice'])
+
         initial_capital = float(client.futures_account()[
                                 'assets'][1]['walletBalance'])
         oppsite_side = "BUY" if side == "SELL" else "SELL"
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
-
+        last_price = float(client.futures_ticker(
+            symbol=symbol)['lastPrice'])
         # OrderId = data['strategy']['alert_message']['OrderId'].upper()
         quantity = float(round_down(initial_capital / last_price if (initial_capital * risk / SL_diff * last_price >
                                                                      initial_capital) else initial_capital * risk / SL_diff, stepsize))
-        halfQty = float(round_down(quantity * 0.5, stepsize))
+        halfQty_1 = float(round_down(quantity * 0.5, stepsize))
+        halfQty_2 = float(round_down(quantity - halfQty_1, stepsize))
+        halfQty_2 = halfQty_2 if halfQty_1 + halfQty_2 == quantity else float(round_down(
+            halfQty_2 + float(round_down(quantity - halfQty_1 - halfQty_2, stepsize)), stepsize))
     # ——————————————————————————————[End]———————————————————————————————————————
         if side == "BUY":
             SL = round(last_price - SL_diff, ticksize)
@@ -212,14 +215,16 @@ def webhook():
             SL_stop_price = round(SL - SL_diff * 0.05, ticksize)
             TP1_stop_price = round(TP1 + SL_diff * 0.05, ticksize)
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
+        last_price = float(client.futures_ticker(
+            symbol=symbol)['lastPrice'])
         order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid + '_F',
                            "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT}
         order_response_PO = order(**order_params_PO)
         order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',
                            "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
-        order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',
+        order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty_1, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',
                             "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-        order_params_TP2 = {"_side": oppsite_side, "_quantity": round_down(quantity - halfQty, stepsize), "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',
+        order_params_TP2 = {"_side": oppsite_side, "_quantity": halfQty_2, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',
                             "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
         order_response_SL = order(**order_params_SL)
         order_response_TP1 = order(**order_params_TP1)

@@ -196,7 +196,7 @@ def webhook():
         # OrderId = data['strategy']['alert_message']['OrderId'].upper()
         quantity = float(round_down(initial_capital / last_price if (initial_capital * risk / SL_diff * last_price >
                                                                      initial_capital) else initial_capital * risk / SL_diff, stepsize))
-        halfQty_1 = float(round_down(quantity * 0.5, stepsize))
+        halfQty_1 = float(round_down(quantity / 2.0, stepsize))
         halfQty_2 = float(round_down(quantity - halfQty_1, stepsize))
         halfQty_2 = halfQty_2 if halfQty_1 + halfQty_2 == quantity else float(round_down(
             halfQty_2 + float(round_down(quantity - halfQty_1 - halfQty_2, stepsize)), stepsize))

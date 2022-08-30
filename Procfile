@@ -1,2 +1,2 @@
 web: gunicorn app:app
-web: python ordermodifier.py
+worker: python ordermodifier.py

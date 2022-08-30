@@ -224,43 +224,6 @@ def webhook():
         order_response_SL = order(**order_params_SL)
         order_response_TP1 = order(**order_params_TP1)
         order_response_TP2 = order(**order_params_TP2)
-        # order_response = order(side, quantity, symbol,
-        #                        OrderId, last_price + price_mod, FUTURE_ORDER_TYPE_LIMIT,)
-        # order_response2 = order(oppsite_side, quantity, symbol,
-        #                         OrderId+'_SL', round_down(SL, 1), round_down(SL_stop_price, 1), FUTURE_ORDER_TYPE_STOP)
-    # elif myOrderType == 'TAKE_PROFIT1':
-    #     origOrderId = data['strategy']['alert_message']['origOrderId'].upper()
-    #     origSTOP = client.futures_get_order(
-    #         symbol=symbol, origClientOrderId=origOrderId+"_SL")
-    #     origQty = float(origSTOP["origQty"])
-    #     origStopPrice = float(origSTOP["stopPrice"])
-    #     origPrice = float(origSTOP["price"])
-    #     cancel_resp = cancel_order(
-    #         symbol, origOrderId + "_SL")
-    #     last_price = float(client.futures_ticker(
-    #         symbol=symbol)['lastPrice']) + price_mod
-    #     modQty = float(round_down(origQty * 0.5, 3))
-    #     order_params_1 = {"_side": side, "_quantity": modQty, "_symbol": symbol, "_OrderId": origOrderId +
-    #                       "_TAKE_PROFIT_1", "_price": last_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT}
-    #     order_params_2 = {"_side": side, "_quantity": round_down(origQty - modQty, 3), "_symbol": symbol, "_OrderId": origOrderId+"_SL_TAKE_PROFIT_1",
-    #                       "_price": round_down(origPrice, 1), "_stopPrice": round_down(origStopPrice, 1), "_order_type": FUTURE_ORDER_TYPE_STOP}
-    #     order_response = order(side, modQty, symbol,
-    #                            origOrderId+"_TAKE_PROFIT_1", last_price, FUTURE_ORDER_TYPE_LIMIT,)
-    #     order_response2 = order(side, round_down(origQty - modQty, 3), symbol,
-    #                             origOrderId+"_SL_TAKE_PROFIT_1", round_down(origPrice, 1), round_down(origStopPrice, 1), FUTURE_ORDER_TYPE_STOP)
-    #     if not cancel_resp:
-    #         order_response = False
-    # elif myOrderType == 'TAKE_PROFIT2':
-    #     origOrderId = data['strategy']['alert_message']['origOrderId'].upper()
-    #     last_price = float(client.futures_ticker(symbol=symbol)['lastPrice'])
-    #     total_position = float(client.futures_position_information(
-    #         symbol=symbol)[0]["positionAmt"])
-    #     order_params_1 = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": abs(
-    #         total_position), "_symbol": symbol, "_OrderId": origOrderId+"_TAKE_PROFIT_2", "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT}
-    #     order_response2 = cancel_order(
-    #         symbol, origOrderId+"_SL_TAKE_PROFIT_1")
-    #     order_response = order("SELL" if total_position > 0 else "BUY", abs(total_position),
-    #                            symbol, origOrderId+"_TAKE_PROFIT_2", last_price + price_mod, FUTURE_ORDER_TYPE_LIMIT,)
     if order_response_PO[0] and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
         return {
             "code": "success",
@@ -288,3 +251,7 @@ def webhook():
             "message": "order failed",
             "close_order_response": close_order[1]
         }
+
+
+if __name__ == "__main__":
+    app.run()

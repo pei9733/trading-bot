@@ -251,7 +251,3 @@ def webhook():
             "message": "order failed",
             "close_order_response": close_order[1]
         }
-
-
-if __name__ == "__main__":
-    app.run()

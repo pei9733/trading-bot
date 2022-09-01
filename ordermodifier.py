@@ -42,12 +42,14 @@ async def main():
                 print("res = ", (res))
                 symbol = res['o']['s']
                 ticksize = 1 if symbol == "BTCUSDT" else 2
-                stepsize = 3
+                step_round = "{:.3f}"
                 execution_response = "Initialize."
                 origOrderId = res['o']['c']
                 if res['o']['X'] == 'FILLED':
+                    print(res)
                     if origOrderId != None and '_F' not in origOrderId:
                         if '_O' in origOrderId:
+                            print("\n\nTAKE PROFIT 1 IS FILLED.\n\n")
                             origClientOrderId = origOrderId.replace('_O', '_S')
                             try:
                                 SL = client.futures_get_order(
@@ -58,20 +60,22 @@ async def main():
                                 total_position = abs(float(client.futures_position_information(
                                     symbol=symbol)[0]["positionAmt"]))
                                 _orderId_tmp = f"OrderModErr_qty_{total_position}"
-                                close_params = {"_side": res['o']['S'], "_quantity": total_position, "_symbol": symbol, "_OrderId": _orderId_tmp,
+                                close_params = {"_side": res['o']['S'], "_quantity": float(step_round.format(total_position)), "_symbol": symbol, "_OrderId": _orderId_tmp,
                                                 "_order_type": FUTURE_ORDER_TYPE_MARKET}
                                 print("execution response = ",
                                       order(**close_params))
                                 continue
                             client.futures_cancel_order(
                                 symbol=symbol, origClientOrderId=origClientOrderId)
-                            order_params = {"_side": SL["side"], "_quantity": round_down(SL["origQty"] - res['o']['q'], stepsize), "_symbol": symbol, "_OrderId": origClientOrderId,
-                                            "_price": round_down(SL["price"], ticksize), "_stopPrice": round_down(SL["stopPrice"], ticksize), "_order_type": FUTURE_ORDER_TYPE_STOP}
+                            order_params = {"_side": SL["side"], "_quantity": float(step_round.format(float(SL["origQty"]) - float(res['o']['q']))), "_symbol": symbol, "_OrderId": origClientOrderId,
+                                            "_price": round_down(float(SL["price"]), ticksize), "_stopPrice": round_down(float(SL["stopPrice"]), ticksize), "_order_type": FUTURE_ORDER_TYPE_STOP}
                             execution_response = order(**order_params)
                         elif '_T' in origOrderId:
-                            execution_response = client.futures_cancel_order(
-                                symbol=symbol, origClientOrderId=origOrderId.replace('_T', '_S'))
+                            print("\n\nTAKE PROFIT 2 IS FILLED\n\n")
+                            execution_response = cancel_orders(
+                                symbol, origOrderId.replace('_T', ''))
                         elif '_S' in origOrderId:
+                            print("\n\nSTOP LOSS IS FILLED\n\n")
                             execution_response = cancel_orders(
                                 symbol, origOrderId.replace('_S', ''))
                         else:

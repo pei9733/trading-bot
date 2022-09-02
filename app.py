@@ -182,11 +182,13 @@ def webhook():
     order_response_TP2 = False
     order_uuid = str(uuid.uuid1().hex)
     if data['passphrase'] != config.WEBHOOK_PASSPHRASE:
+        print("\n\nPassPhrase Prb\n\n")
         return {
             "code": "error",
             "message": "Nice try, invalid passphrase"
         }
     elif myOrderType != 'PLACE_ORDER':
+        print("\n\n Not PLACE_ORDER \n\n")
         return {
             "code": "error",
             "message": "NA"
@@ -195,6 +197,7 @@ def webhook():
 
     # ———————————————————————————[variables]————————————————————————————————————
     else:
+        print("\n\nPLACE_ORDER\n\n")
         OrderId = data['strategy']['alert_message']["order_id"].upper()
         risk = 0.02
         SL = 0.0

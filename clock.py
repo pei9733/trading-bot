@@ -1,5 +1,4 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
-import urllib
 import urllib.request
 from binance.client import Client
 import config
@@ -8,7 +7,7 @@ sched = BlockingScheduler()
 client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
 
-@sched.scheduled_job('cron', day_of_week='mon-fri', minute='*/25')
+@sched.scheduled_job('cron', day_of_week='mon-fri', minute='*/1')
 def scheduled_job():
     client.futures_change_leverage(symbol="BTCUSDT", leverage=10)
     client.futures_change_leverage(symbol="ETHUSDT", leverage=10)

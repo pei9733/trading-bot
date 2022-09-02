@@ -13,3 +13,7 @@ https://www.youtube.com/watch?v=gMRee2srpe8
 .bar_index ignorance
 .check if order are filled
 .a 5% stop order refresh every minute
+
+## Problems
+
+.TP / SL order filled before origin order filled

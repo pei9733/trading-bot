@@ -1,5 +1,5 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
-import urllib.request
+import urllib
 from binance.client import Client
 import config
 

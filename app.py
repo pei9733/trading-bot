@@ -186,7 +186,7 @@ def webhook():
             "code": "error",
             "message": "Nice try, invalid passphrase"
         }
-    elif myOrderType == "NA":
+    elif myOrderType != 'PLACE_ORDER':
         return {
             "code": "error",
             "message": "NA"
@@ -194,7 +194,7 @@ def webhook():
     # elif myOrderType = "CHANGE_SIDE":
 
     # ———————————————————————————[variables]————————————————————————————————————
-    elif myOrderType == 'PLACE_ORDER':
+    else:
         risk = 0.02
         SL = 0.0
         TP1 = 0.0

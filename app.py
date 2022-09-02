@@ -34,16 +34,6 @@ db = client_mongo.get_database('myBinanceBot')
 db_bar_index = db.bar_index
 
 
-def isProfitTaken():
-    """ Function for test purposes. """
-    print(client.futures_get_open_orders(symbol="BTCUSDT"))
-
-
-sched = BackgroundScheduler(daemon=True)
-sched.add_job(isProfitTaken, 'interval', seconds=10)
-# sched.start()
-
-
 def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT,):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
@@ -148,6 +138,7 @@ def test2():
     # return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
     # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
     # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="L_2af4d149291511ed82cf40ec99c99f2c_F")
+    return client.futures_change_leverage(symbol="ETHUSDT", leverage=10)
     lp = float(client.futures_ticker(symbol="BTCUSDT")['lastPrice'])
     # for i in range(5):
     #     print(i)

@@ -165,15 +165,6 @@ def webhook():
     side = data['strategy']['order_action'].upper()
     total_position = float(client.futures_position_information(
         symbol=symbol)[0]["positionAmt"])
-
-    if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
-        orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
-        client.futures_cancel_all_open_orders(symbol=symbol)
-        total_position = float(client.futures_position_information(
-            symbol=symbol)[0]["positionAmt"])
-        order_params_close_all = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": abs(total_position), "_symbol": symbol, "_OrderId": orderid_tmp,
-                                  "_order_type": FUTURE_ORDER_TYPE_MARKET}
-        close_order = order(**order_params_close_all)
     price_mod = (10.0 if side == "BUY" else (-10.0)
                  ) if symbol == "BTCUSDT" else (3.0 if side == "BUY" else (-3.0))
     order_response_PO = False
@@ -197,6 +188,14 @@ def webhook():
 
     # ———————————————————————————[variables]————————————————————————————————————
     else:
+        if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
+            orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
+            client.futures_cancel_all_open_orders(symbol=symbol)
+            total_position = float(client.futures_position_information(
+                symbol=symbol)[0]["positionAmt"])
+            order_params_close_all = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": abs(total_position), "_symbol": symbol, "_OrderId": orderid_tmp,
+                                      "_order_type": FUTURE_ORDER_TYPE_MARKET}
+            close_order = order(**order_params_close_all)
         print("\n\nPLACE_ORDER\n\n")
         OrderId = data['strategy']['alert_message']["order_id"].upper()
         risk = 0.02

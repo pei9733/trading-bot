@@ -1,4 +1,5 @@
 from email.quoprimime import quote
+from turtle import position
 from pymongo import MongoClient
 import asyncio
 import json
@@ -103,22 +104,24 @@ def test():
     # end = time.time()
     # return json.dumps({"time": end - start})
     # return client.futures_get_open_orders(symbol="BTCUSDT")
-    return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="justfortest")
-    return client.futures_exchange_info()     # filter
-    return client.futures_get_order(
-        symbol="BTCUSDT", origClientOrderId="notexist")
+    # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="justfortest")
+    # return client.futures_exchange_info()     # filter
+    # return client.futures_get_order(
+    #     symbol="BTCUSDT", origClientOrderId="notexist")
     # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
     # return client.futures_account()['assets'][1]['walletBalance']
     # for i in client.futures_get_all_orders(symbol="BTCUSDT"):
     #     print(i["clientOrderId"])
     # return False
     OrderId = "L"
-    order_uuid = str(uuid.uuid1().hex)
-    # , OrderId+"_"+order_uuid +
-    origClientOrderIdList = [OrderId+"_"+order_uuid]
-    #  "_S", OrderId+"_"+order_uuid+"_1", OrderId+"_"+order_uuid+"_2"]
-    return client.futures_cancel_orders(
-        symbol="BTCUSDT", origClientOrderIdList=origClientOrderIdList)
+    # order_uuid = str(uuid.uuid1().hex)
+    order_uuid = "nevergonna"
+    # order_uuid = "2af4d149291511ed82cf40ec99c99f2c"
+    origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
+                                        "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
+    origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
+    return json.dumps(client.futures_cancel_orders(
+        symbol="BTCUSDT", origClientOrderIdList=origClientOrderIdList))
 
     requestedFutures = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'DYDXUSDT']
     print(
@@ -137,8 +140,8 @@ def test2():
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])
     # return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
     # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
-    # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="L_2af4d149291511ed82cf40ec99c99f2c_F")
-    return client.futures_change_leverage(symbol="ETHUSDT", leverage=10)
+    return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="web_aByVVd33TXPtH5IbckJW")
+    # return client.futures_change_leverage(symbol="ETHUSDT", leverage=10)
     lp = float(client.futures_ticker(symbol="BTCUSDT")['lastPrice'])
     # for i in range(5):
     #     print(i)
@@ -166,6 +169,8 @@ def webhook():
     if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
         orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
         client.futures_cancel_all_open_orders(symbol=symbol)
+        total_position = float(client.futures_position_information(
+            symbol=symbol)[0]["positionAmt"])
         order_params_close_all = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": abs(total_position), "_symbol": symbol, "_OrderId": orderid_tmp,
                                   "_order_type": FUTURE_ORDER_TYPE_MARKET}
         close_order = order(**order_params_close_all)
@@ -253,7 +258,7 @@ def webhook():
                 break
             time.sleep(1)
     filled = 0
-    print(OrderId+'_'+order_uuid + '_F')
+    # print(OrderId+'_'+order_uuid + '_F')
     while filled < 6 and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
         if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
             break
@@ -275,14 +280,16 @@ def webhook():
         origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
         client.futures_cancel_orders(
             symbol=symbol, origClientOrderIdList=origClientOrderIdList)
-
-        position2close = client.futures_get_order(
-            symbol=symbol, origClientOrderId=OrderId+"_"+order_uuid+"_F")["executedQty"]
+        theorder = client.futures_get_order(
+            symbol=symbol, origClientOrderId=OrderId+"_"+order_uuid+"_F")
+        position2close = abs(float(theorder["executedQty"]))
+        side2close = theorder["side"]
+        print(position2close)
         close_order = [True, "position = 0"]
-        if total_position != 0 and position2close != '0':
+        if position2close != '0':
             _orderId_tmp = f"ErrorClose_qty_{position2close}"
             print(_orderId_tmp)
-            order_params_close_all = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
+            order_params_close_all = {"_side": "SELL" if side2close == "BUY" else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
                                       "_order_type": FUTURE_ORDER_TYPE_MARKET}
             close_order = order(**order_params_close_all)
         return {

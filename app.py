@@ -165,7 +165,7 @@ def webhook():
     side = data['strategy']['order_action'].upper()
     total_position = float(client.futures_position_information(
         symbol=symbol)[0]["positionAmt"])
-    OrderId = data['strategy']['alert_message']["order_id"].upper()
+
     if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
         orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
         client.futures_cancel_all_open_orders(symbol=symbol)
@@ -195,6 +195,7 @@ def webhook():
 
     # ———————————————————————————[variables]————————————————————————————————————
     else:
+        OrderId = data['strategy']['alert_message']["order_id"].upper()
         risk = 0.02
         SL = 0.0
         TP1 = 0.0

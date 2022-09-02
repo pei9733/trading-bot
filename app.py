@@ -1,5 +1,3 @@
-from email.quoprimime import quote
-from turtle import position
 from pymongo import MongoClient
 import asyncio
 import json

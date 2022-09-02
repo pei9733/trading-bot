@@ -140,7 +140,9 @@ def test2():
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])
     # return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
     # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
-    return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="web_aByVVd33TXPtH5IbckJW")
+    # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="web_aByVVd33TXPtH5IbckJW")
+    # return client.futures_change_margin_type(symbol="BTCUSDT", marginType="ISOLATED")
+    return client.futures_change_leverage(symbol="BTCUSDT", leverage=10)
     # return client.futures_change_leverage(symbol="ETHUSDT", leverage=10)
     lp = float(client.futures_ticker(symbol="BTCUSDT")['lastPrice'])
     # for i in range(5):

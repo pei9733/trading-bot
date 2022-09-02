@@ -1,2 +1,2 @@
-web: gunicorn app:app
+web: gunicorn app:app --timeout 70
 clock: python clock.py

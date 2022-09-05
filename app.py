@@ -268,32 +268,36 @@ def webhook():
                             "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
         order_params_TP2 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',  # Two
                             "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-        for i in range(5):
-            order_response_TP1 = order(**order_params_TP1)
-            if (order_response_TP1[2] and "=-2021" not in str(order_response_TP1[2])) or not order_response_TP1[2]:
+
+        filled = 0
+        # print(OrderId+'_'+order_uuid + '_F')
+        while filled < 12:
+            if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
                 break
-            time.sleep(1)
-        for i in range(5):
-            order_response_TP2 = order(**order_params_TP2)
-            if (order_response_TP2[2] and "=-2021" not in str(order_response_TP2[2])) or not order_response_TP2[2]:
-                break
-            time.sleep(1)
-        for i in range(5):
-            order_response_SL = order(**order_params_SL)
-            if (order_response_SL[2] and "=-2021" not in str(order_response_SL[2])) or not order_response_SL[2]:
-                break
-            time.sleep(1)
-    filled = 0
-    # print(OrderId+'_'+order_uuid + '_F')
-    while filled < 6 and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
-        if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
-            break
-        print(
-            f"Limit order hasn't been filled yet.Wait for 10 sec. {filled * 10} sec")
-        filled += 1
-        time.sleep(10)
-    if filled == 6 and client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] != "FILLED":
-        order_response_PO[0] = False
+            print(
+                f"Limit order hasn't been filled yet.Wait for 5 sec. {filled * 5} sec")
+            filled += 1
+            time.sleep(5)
+        if filled != 12 or client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
+            order_response_PO[0] = True
+            for i in range(5):
+                order_response_SL = order(**order_params_SL)
+                if (order_response_SL[2] and "=-2021" not in str(order_response_SL[2])) or not order_response_SL[2]:
+                    break
+                time.sleep(1)
+            if order_response_SL[0]:
+                for i in range(5):
+                    order_response_TP1 = order(**order_params_TP1)
+                    if (order_response_TP1[2] and "=-2021" not in str(order_response_TP1[2])) or not order_response_TP1[2]:
+                        break
+                    time.sleep(1)
+            if order_response_SL[0] and order_response_TP1[0]:
+                for i in range(5):
+                    order_response_TP2 = order(**order_params_TP2)
+                    if (order_response_TP2[2] and "=-2021" not in str(order_response_TP2[2])) or not order_response_TP2[2]:
+                        break
+                    time.sleep(1)
+
     if order_response_PO[0] and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
         return {
             "code": "success",
@@ -313,7 +317,7 @@ def webhook():
         print(position2close)
         close_order = [True, "position = 0"]
         if position2close != '0':
-            _orderId_tmp = f"ErrorClose_qty_{position2close}"
+            _orderId_tmp = f"ErrCls_qty_{position2close}_exc"
             print(_orderId_tmp)
             order_params_close_all = {"_side": "SELL" if side2close == "BUY" else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
                                       "_order_type": FUTURE_ORDER_TYPE_MARKET}

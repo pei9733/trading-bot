@@ -198,10 +198,10 @@ def webhook():
         symbol=symbol)[0]["positionAmt"])
     price_mod = (10.0 if side == "BUY" else (-10.0)
                  ) if symbol == "BTCUSDT" else (3.0 if side == "BUY" else (-3.0))
-    order_response_PO = [True, order, False]
-    order_response_SL = [True, order, False]
-    order_response_TP1 = [True, order, False]
-    order_response_TP2 = [True, order, False]
+    order_response_PO = [True, True, False]
+    order_response_SL = [True, True, False]
+    order_response_TP1 = [True, True, False]
+    order_response_TP2 = [True, True, False]
     order_uuid = str(uuid.uuid1().hex)
 
     if myOrderType != 'PLACE_ORDER':

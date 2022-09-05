@@ -132,6 +132,8 @@ def welcome():
 
 @app.route('/test2', methods=['POST'])
 def test2():
+    return (client.futures_position_information(
+        symbol="BTCUSDT")[0]["positionAmt"])
     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
     # print('0' == client.futures_get_order(symbol="BTCUSDT",
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])

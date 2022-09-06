@@ -13,6 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import time
 # from flask_socketio import SocketIO, emit
 import urllib.parse
+from datetime import datetime
 
 
 def round_down(value, decimals):
@@ -132,15 +133,22 @@ def welcome():
 
 @app.route('/test2', methods=['POST'])
 def test2():
-    return (client.futures_position_information(
-        symbol="BTCUSDT")[0]["positionAmt"])
+    # return (client.futures_position_information(
+    #     symbol="BTCUSDT")[0]["positionAmt"])
     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
     # print('0' == client.futures_get_order(symbol="BTCUSDT",
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])
-    # print(0 == client.futures_get_order(symbol="BTCUSDT",
-    #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])
+    # print(type(client.futures_get_order(symbol="BTCUSDT",
+    #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["time"]))
     # return json.dumps(cancel_order("BTCUSDT", "L_0b20bc4f29c411eda43b40ec99c99f2c_T"))
-    # return json.dumps(client.futures_get_all_orders(symbol="BTCUSDT"))
+
+    list_ = client.futures_get_all_orders(symbol="BTCUSDT")
+    # print(datetime.fromtimestamp(int(list_[0]['time']/1000)))
+    for i in list_:
+        i["time"] = str(datetime.fromtimestamp(i["time"]/1000))[:19]
+        i["updateTime"] = str(
+            datetime.fromtimestamp(i["updateTime"]/1000))[:19]
+    return json.dumps(list_)
     return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
     # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="web_aByVVd33TXPtH5IbckJW")
     # return client.futures_change_margin_type(symbol="BTCUSDT", marginType="ISOLATED")

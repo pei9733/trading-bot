@@ -75,6 +75,22 @@ def cancel_order(_symbol, _origOrderId):
     return [True, cancel_order]
 
 
+def close_all(symbol):
+    step_round = "{:.3f}"
+    client.futures_cancel_all_open_orders(symbol=symbol)
+    total_position = float(client.futures_position_information(
+        symbol=symbol)[0]["positionAmt"])
+    if total_position == 0:
+        print("\nCLOSE_ALL BUT NOTHING TO CLOSE\n")
+        return [True, "position = 0", True]
+    side = "BUY" if total_position < 0 else "SELL"
+    total_position = abs(total_position)
+    _orderId_tmp = f"ErrCls_qty_{total_position}_exc"
+    close_params = {"_side": side, "_quantity": float(step_round.format(total_position)), "_symbol": symbol, "_OrderId": _orderId_tmp,
+                    "_order_type": FUTURE_ORDER_TYPE_MARKET}
+    return order(**close_params)
+
+
 @app.route('/')
 def welcome():
     return render_template('index.html')
@@ -82,53 +98,56 @@ def welcome():
 # max algo order num
 
 
-# @app.route('/test', methods=['POST'])
-# def test():
-#     # return client.futures_ticker(symbol="BTCUSDT")['lastPrice']  # last price
-#     # return client.futures_position_information(symbol="BTCUSDT")  # last price
-#     # test_params = {"_side": "SELL", "_quantity": 0.001, "_symbol": "BTCUSDT", "_OrderId": "L_123456789_TEST",
-#     #                "_order_type": FUTURE_ORDER_TYPE_MARKET}
-#     # order(**test_params)
-#     # return json.dumps(order(**test_params))
-#     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
-#     # print(client)
-#     # return
-#     # start = time.time()
-#     # orders = client.futures_get_open_orders(symbol="BTCUSDT")
-#     # order_uuids = []
-#     # for i in orders:
-#     #     i_uuid = i['clientOrderId'][:-2]
-#     #     if not (i_uuid in order_uuids):
-#     #         order_uuids.append(i_uuid)
-#     # # client.futures_stream_close()
-#     # end = time.time()
-#     # return json.dumps({"time": end - start})
-#     # return client.futures_get_open_orders(symbol="BTCUSDT")
-#     # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="justfortest")
-#     # return client.futures_exchange_info()     # filter
-#     # return client.futures_get_order(
-#     #     symbol="BTCUSDT", origClientOrderId="notexist")
-#     # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
-#     # return client.futures_account()['assets'][1]['walletBalance']
-#     # for i in client.futures_get_all_orders(symbol="BTCUSDT"):
-#     #     print(i["clientOrderId"])
-#     # return False
-#     OrderId = "L"
-#     # order_uuid = str(uuid.uuid1().hex)
-#     order_uuid = "nevergonna"
-#     # order_uuid = "2af4d149291511ed82cf40ec99c99f2c"
-#     origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
-#                                         "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
-#     origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
-#     return json.dumps(client.futures_cancel_orders(
-#         symbol="BTCUSDT", origClientOrderIdList=origClientOrderIdList))
+@app.route('/test', methods=['POST'])
+def test():
+    # return client.futures_ticker(symbol="BTCUSDT")['lastPrice']  # last price
+    # return client.futures_position_information(symbol="BTCUSDT")  # last price
+    data = json.loads(request.data)
+    size = data['strategy']['position_size']
+    test_params = {"_side": "SELL", "_quantity": size, "_symbol": "BTCUSDT", "_OrderId": "L_TEST",
+                   "_order_type": FUTURE_ORDER_TYPE_MARKET}
+    order(**test_params)
+    return json.dumps(order(**test_params))
+    # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
+    # print(client)
+    # return
+    # start = time.time()
+    # orders = client.futures_get_open_orders(symbol="BTCUSDT")
+    # order_uuids = []
+    # for i in orders:
+    #     i_uuid = i['clientOrderId'][:-2]
+    #     if not (i_uuid in order_uuids):
+    #         order_uuids.append(i_uuid)
+    # # client.futures_stream_close()
+    # end = time.time()
+    # return json.dumps({"time": end - start})
+    # return client.futures_get_open_orders(symbol="BTCUSDT")
+    # return client.futures_get_order(symbol="BTCUSDT", origClientOrderId="justfortest")
+    # return client.futures_exchange_info()     # filter
+    # return client.futures_get_order(
+    #     symbol="BTCUSDT", origClientOrderId="notexist")
+    # return client.futures_cancel_all_open_orders(symbol="BTCUSDT")
+    # return client.futures_account()['assets'][1]['walletBalance']
+    # for i in client.futures_get_all_orders(symbol="BTCUSDT"):
+    #     print(i["clientOrderId"])
+    # return False
 
-#     requestedFutures = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'DYDXUSDT']
-#     print(
-#         {si['symbol']: si['quantityPrecision']
-#             for si in info['symbols'] if si['symbol'] in requestedFutures}
-#     )
-#     return "OK"
+    OrderId = "L"
+    # order_uuid = str(uuid.uuid1().hex)
+    order_uuid = "nevergonna"
+    # order_uuid = "2af4d149291511ed82cf40ec99c99f2c"
+    origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
+                                        "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
+    origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
+    return json.dumps(client.futures_cancel_orders(
+        symbol="BTCUSDT", origClientOrderIdList=origClientOrderIdList))
+
+    requestedFutures = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'DYDXUSDT']
+    print(
+        {si['symbol']: si['quantityPrecision']
+            for si in info['symbols'] if si['symbol'] in requestedFutures}
+    )
+    return "OK"
 
 
 @app.route('/test2', methods=['POST'])
@@ -136,14 +155,14 @@ def test2():
     # return (client.futures_position_information(
     #     symbol="BTCUSDT")[0]["positionAmt"])
     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
-    # print('0' == client.futures_get_order(symbol="BTCUSDT",
-    #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["executedQty"])
+    # return (client.futures_get_order(symbol="BTCUSDT",
+    #  origClientOrderId="L_TEST_TP1"))
     # print(type(client.futures_get_order(symbol="BTCUSDT",
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["time"]))
     # return json.dumps(cancel_order("BTCUSDT", "L_0b20bc4f29c411eda43b40ec99c99f2c_T"))
 
     list_ = client.futures_get_all_orders(symbol="BTCUSDT")
-    # print(datetime.fromtimestamp(int(list_[0]['time']/1000)))
+    print(datetime.fromtimestamp(int(list_[0]['time']/1000)))
     for i in list_:
         i["time"] = str(datetime.fromtimestamp(i["time"]/1000))[:19]
         i["updateTime"] = str(
@@ -182,7 +201,7 @@ def test2():
     return json.dumps(res[:2])
 
 
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['POST'])  # if PO is not executed completely?
 def webhook():
     try:
         data = json.loads(request.data)
@@ -197,6 +216,7 @@ def webhook():
             }
     except:
         return json.dumps(["Decline"])
+    OrderId = data['strategy']['alert_message']["origOrderId"].upper()
     myOrderType = data['strategy']['alert_message']['orderType']
     symbol = data['ticker'].replace('PERP', '')
     ticksize = 1 if symbol == "BTCUSDT" else 2
@@ -211,8 +231,59 @@ def webhook():
     order_response_TP1 = [True, True, False]
     order_response_TP2 = [True, True, False]
     order_uuid = str(uuid.uuid1().hex)
+    if myOrderType == 'TP1':
+        try:
+            origOrder = client.futures_get_order(
+                symbol=symbol, origClientOrderId=OrderId)
+        except:
+            print("order Query failed")
+            close_order = close_all(symbol)
+            return {
+                "code": "error",
+                "message": "order Query failed",
+                "close_order_response": close_order[1]
+            }
+        last_price = float(client.futures_ticker(symbol=symbol)['lastPrice'])
+        order_params = {"_side": side, "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1",
+                        "_price": round_down(float(last_price), ticksize), "_order_type": FUTURE_ORDER_TYPE_LIMIT}
+        for i in range(3):  # 這是一定要掛不是一定要賣
+            execution_response = order(**order_params)
+            if (execution_response[2] and "=-2021" not in str(execution_response[2])) or not execution_response[2]:
+                break
+            time.sleep(1)
+        if not execution_response[0]:
+            order_params = {"_side": side, "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1_M",
+                            "_order_type": FUTURE_ORDER_TYPE_MARKET}
+            execution_response = order(**order_params)
+    elif myOrderType == 'TP2':
+        try:
+            origOrder = client.futures_get_order(
+                symbol=symbol, origClientOrderId=OrderId)
+        except:
+            print("order Query failed")
+            close_order = close_all(symbol)
+            return {
+                "code": "error",
+                "message": "order Query failed",
+                "close_order_response": close_order[1]
+            }
+        try:
+            order_TP1 = client.futures_get_order(
+                symbol=symbol, origClientOrderId=OrderId + '_TP1')
+        except:
+            try:
+                order_TP1 = client.futures_get_order(
+                    symbol=symbol, origClientOrderId=OrderId + '_TP1_M')
+            except:
+                print("order Query failed")
+                close_order = close_all(symbol)
+                return {
+                    "code": "error",
+                    "message": "order Query failed",
+                    "close_order_response": close_order[1]
+                }
 
-    if myOrderType != 'PLACE_ORDER':
+    elif myOrderType != 'PLACE_ORDER':
         print("\n\n Not PLACE_ORDER \n\n")
         return {
             "code": "error",
@@ -232,7 +303,6 @@ def webhook():
                                       "_order_type": FUTURE_ORDER_TYPE_MARKET}
             close_order = order(**order_params_close_all)
         print("\n\nPLACE_ORDER\n\n")
-        OrderId = data['strategy']['alert_message']["order_id"].upper()
         risk = 0.01
         SL = 0.0
         TP1 = 0.0

@@ -29,10 +29,10 @@ app = Flask(__name__)
 client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
 
-app.config['MONGO_URI'] = config.MONGO_URL
-client_mongo = MongoClient(config.MONGO_URL)
-db = client_mongo.get_database('myBinanceBot')
-db_bar_index = db.bar_index
+# app.config['MONGO_URI'] = config.MONGO_URL
+# client_mongo = MongoClient(config.MONGO_URL)
+# db = client_mongo.get_database('myBinanceBot')
+# db_bar_index = db.bar_index
 
 
 def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT,):
@@ -102,6 +102,11 @@ def welcome():
 def test():
     # return client.futures_ticker(symbol="BTCUSDT")['lastPrice']  # last price
     # return client.futures_position_information(symbol="BTCUSDT")  # last price
+    # print(client.futures_order_book(symbol="BTCUSDT"))
+    mk = client.futures_order_book(symbol="BTCUSDT", limit=5)
+    print(mk["asks"][0])
+    return(mk)
+
     data = json.loads(request.data)
     size = data['strategy']['position_size']
     test_params = {"_side": "SELL", "_quantity": size, "_symbol": "BTCUSDT", "_OrderId": "L_TEST",

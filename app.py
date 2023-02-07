@@ -35,12 +35,12 @@ client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 # db_bar_index = db.bar_index
 
 
-def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT,):
+def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC'):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
         if _order_type == FUTURE_ORDER_TYPE_LIMIT:
             order = client.futures_create_order(
-                symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce='GTC')
+                symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif)
         elif _order_type == FUTURE_ORDER_TYPE_MARKET:
             order = client.futures_create_order(
                 symbol=_symbol, side=_side, type=_order_type, quantity=_quantity, newClientOrderId=_OrderId)
@@ -318,6 +318,7 @@ def webhook():
                                 'assets'][1]['walletBalance'])
         oppsite_side = "BUY" if side == "SELL" else "SELL"
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
+        qty_price = float(data['strategy']['order_price'][:7])
         last_price = float(client.futures_ticker(
             symbol=symbol)['lastPrice'])
         # OrderId = data['strategy']['alert_message']['OrderId'].upper()
@@ -347,7 +348,7 @@ def webhook():
             TP1_stop_price = round(TP1 + SL_diff * 0.05, ticksize)
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
         order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid + '_F',   # First
-                           "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT}
+                           "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
         order_response_PO = order(**order_params_PO)
         order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
                            "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}

@@ -102,16 +102,16 @@ def welcome():
 def test():
     # return client.futures_ticker(symbol="BTCUSDT")['lastPrice']  # last price
     # return client.futures_position_information(symbol="BTCUSDT")  # last price
-    # print(client.futures_order_book(symbol="BTCUSDT"))
-    mk = client.futures_order_book(symbol="BTCUSDT", limit=5)
-    print(mk["asks"][0])
-    return(mk)
+    return(json.dumps(client.futures_order_book(symbol="BTCUSDT", limit=5)['asks'][0]))
 
-    data = json.loads(request.data)
-    size = data['strategy']['position_size']
-    test_params = {"_side": "SELL", "_quantity": size, "_symbol": "BTCUSDT", "_OrderId": "L_TEST",
+    # data = json.loads(request.data)
+    # size = data['strategy']['position_size']
+    test_params = {"_side": "SELL", "_quantity": 0.001, "_symbol": "BTCUSDT", "_OrderId": "L_TEST",
                    "_order_type": FUTURE_ORDER_TYPE_MARKET}
+    return json.dumps(client.futures_account()[
+        'assets'][3]['walletBalance'])
     order(**test_params)
+
     return json.dumps(order(**test_params))
     # return json.dumps(client.futures_get_open_orders(symbol="BTCUSDT"))
     # print(client)
@@ -227,6 +227,7 @@ def webhook():
     ticksize = 1 if symbol == "BTCUSDT" else 2
     step_round = "{:.3f}"
     side = data['strategy']['order_action'].upper()
+    asksbids = "asks" if side == "SELL" else "bids"
     total_position = float(client.futures_position_information(
         symbol=symbol)[0]["positionAmt"])
     price_mod = (10.0 if side == "BUY" else (-10.0)
@@ -297,7 +298,7 @@ def webhook():
     # elif myOrderType = "CHANGE_SIDE":
 
     # ———————————————————————————[variables]————————————————————————————————————
-    else:
+    else:   # place order's orderID : L_{timestamp}_1  /  S_{timestamp}_1
         if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
             print("\n\nCHANGE SIDE\n\n")
             orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
@@ -315,10 +316,10 @@ def webhook():
         # return data
 
         initial_capital = float(client.futures_account()[
-                                'assets'][1]['walletBalance'])
+                                'assets'][3]['walletBalance'])
         oppsite_side = "BUY" if side == "SELL" else "SELL"
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
-        qty_price = float(data['strategy']['order_price'][:7])
+        qty_price = float(str(data['strategy']['order_price'])[:7])
         last_price = float(client.futures_ticker(
             symbol=symbol)['lastPrice'])
         # OrderId = data['strategy']['alert_message']['OrderId'].upper()
@@ -347,44 +348,51 @@ def webhook():
             SL_stop_price = round(SL - SL_diff * 0.05, ticksize)
             TP1_stop_price = round(TP1 + SL_diff * 0.05, ticksize)
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
-        order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid + '_F',   # First
-                           "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-        order_response_PO = order(**order_params_PO)
-        order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
-                           "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
-        order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',  # One
-                            "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-        order_params_TP2 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',  # Two
-                            "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
+        # order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+        #                    "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
+        order_price = client.futures_order_book(
+            symbol=symbol, limit=5)[asksbids][0]
+        effi = 0.98 if side == "SELL" else 1.02
 
-        filled = 0
-        # print(OrderId+'_'+order_uuid + '_F')
-        while filled < 12:
-            if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
-                break
-            print(
-                f"Limit order hasn't been filled yet.Wait for 5 sec. {filled * 5} sec")
-            filled += 1
-            time.sleep(5)
-        if filled != 12 or client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
-            order_response_PO[0] = True
-            for i in range(5):
-                order_response_SL = order(**order_params_SL)
-                if (order_response_SL[2] and "=-2021" not in str(order_response_SL[2])) or not order_response_SL[2]:
-                    break
-                time.sleep(1)
-            if order_response_SL[0]:
-                for i in range(5):
-                    order_response_TP1 = order(**order_params_TP1)
-                    if (order_response_TP1[2] and "=-2021" not in str(order_response_TP1[2])) or not order_response_TP1[2]:
-                        break
-                    time.sleep(1)
-            if order_response_SL[0] and order_response_TP1[0]:
-                for i in range(5):
-                    order_response_TP2 = order(**order_params_TP2)
-                    if (order_response_TP2[2] and "=-2021" not in str(order_response_TP2[2])) or not order_response_TP2[2]:
-                        break
-                    time.sleep(1)
+        order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+                           "_price": qty_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
+        print(order_params_PO)
+        order_response_PO = order(**order_params_PO)
+        # order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
+        #                    "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
+        # order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',  # One
+        #                     "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
+        # order_params_TP2 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',  # Two
+        #                     "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
+
+        # filled = 0
+        # # print(OrderId+'_'+order_uuid + '_F')
+        # while filled < 12:
+        #     if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
+        #         break
+        #     print(
+        #         f"Limit order hasn't been filled yet.Wait for 5 sec. {filled * 5} sec")
+        #     filled += 1
+        #     time.sleep(5)
+        # if filled != 12 or client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
+        #     order_response_PO[0] = True
+        #     for i in range(5):
+        #         order_response_SL = order(**order_params_SL)
+        #         if (order_response_SL[2] and "=-2021" not in str(order_response_SL[2])) or not order_response_SL[2]:
+        #             break
+        #         time.sleep(1)
+        #     if order_response_SL[0]:
+        #         for i in range(5):
+        #             order_response_TP1 = order(**order_params_TP1)
+        #             if (order_response_TP1[2] and "=-2021" not in str(order_response_TP1[2])) or not order_response_TP1[2]:
+        #                 break
+        #             time.sleep(1)
+        #     if order_response_SL[0] and order_response_TP1[0]:
+        #         for i in range(5):
+        #             order_response_TP2 = order(**order_params_TP2)
+        #             if (order_response_TP2[2] and "=-2021" not in str(order_response_TP2[2])) or not order_response_TP2[2]:
+        #                 break
+        #             time.sleep(1)
 
     if order_response_PO[0] and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
         return {

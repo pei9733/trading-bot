@@ -350,14 +350,16 @@ def webhook():
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
         # order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
         #                    "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-        order_price = client.futures_order_book(
-            symbol=symbol, limit=5)[asksbids][0]
-        effi = 0.98 if side == "SELL" else 1.02
-
-        order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
-                           "_price": qty_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-        print(order_params_PO)
-        order_response_PO = order(**order_params_PO)
+        for i in range(10):
+            order_price = client.futures_order_book(
+                symbol=symbol, limit=5)[asksbids][0]
+            slip_effi = 0.02
+            if abs(order_price - qty_price) / qty_price > 0.02:
+                continue
+            order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+                               "_price": order_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
+            order_response_PO = order(**order_params_PO)
+            print(order_response_PO)
         # order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
         #                    "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
         # order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',  # One

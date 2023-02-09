@@ -30,6 +30,7 @@ client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
 ASKSBIDS = ['asks', 'bids']
 SIDE = ['BUY', 'SELL']
+slip_effi = 0.02
 # app.config['MONGO_URI'] = config.MONGO_URL
 # client_mongo = MongoClient(config.MONGO_URL)
 # db = client_mongo.get_database('myBinanceBot')
@@ -42,25 +43,29 @@ def orderQuery(_symbol, _OrderId):
     except:
         print("order Query failed")
         close_order = close_all(_symbol)
-def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC'):
+def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price = 0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC', _asksbids = 0, _force = False):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
-        if _order_type == FUTURE_ORDER_TYPE_LIMIT:
-            order = client.futures_create_order(
-                symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif)
-        elif _order_type == FUTURE_ORDER_TYPE_MARKET:
-            order = client.futures_create_order(
-                symbol=_symbol, side=_side, type=_order_type, quantity=_quantity, newClientOrderId=_OrderId)
-        else:
-            order = client.futures_create_order(
-                symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, stopPrice=_stopPrice, priceProtect=True)
-        # elif _order_type == FUTURE_ORDER_TYPE_STOP:
-        #     order = client.futures_create_order(
-        #         symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, stopPrice=_stopPrice)
-        # elif _order_type == FUTURE_ORDER_TYPE_TAKE_PROFIT:
-        #     order = client.futures_create_order(
-        #         symbol=_symbol, side=_side, type=_order_type, price=_price, quantity=_quantity, newClientOrderId=_OrderId, stopPrice=_stopPrice)
-
+        filled = 0
+        while filled < 20:
+            filled += 1
+            if filled == 10:
+                _asksbids = not _asksbids
+            order_price = float(client.futures_order_book(
+                symbol=_symbol, limit=5)[ASKSBIDS[_asksbids]][0][0]) 
+            if _tv_price != 0 and abs(order_price - _tv_price) / _tv_price > slip_effi:
+                continue
+            order_response = client.futures_create_order(
+                symbol=_symbol, side=_side, type=_order_type, price=order_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif)
+            time.sleep(0.5)
+            if client.futures_get_order(symbol=_symbol, origClientOrderId=_OrderId)['status'] == 'FILLED':
+                print(client.futures_get_order(symbol=_symbol, origClientOrderId=_OrderId)['avgPrice'])
+                print(filled)
+                break
+        if _force and filled == 20:
+            order_response = client.futures_create_order(
+                symbol=_symbol, side=_side, type=FUTURE_ORDER_TYPE_MARKET, quantity=_quantity, newClientOrderId=_OrderId+'_M')
+        return order_response
     except Exception as e:
         print("an exception occured - {}".format(e))
         # print(str(e))
@@ -217,7 +222,8 @@ def test2():
 # // orderType 2, 3 denotes TP1, TP2
 # // orderType 4 denotes stop loss
 # // orderType 5 denotes change side
-@app.route('/webhook', methods=['POST'])  # if PO is not executed completely?
+@app.route('/webhook', methods=['POST'])  # 單有可能沒買到
+
 def webhook():
     try:
         data = json.loads(request.data)
@@ -250,18 +256,9 @@ def webhook():
     # order_uuid = str(uuid.uuid1().hex)
     if orderType == '2':
         origOrder = orderQuery(symbol, OrderId)
-        last_price = float(client.futures_ticker(symbol=symbol)['lastPrice'])
         order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_2",
-                        "_price": round_down(float(last_price), ticksize), "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
-        for i in range(3):  # 這是一定要掛不是一定要賣
-            execution_response = order(**order_params)
-            if (execution_response[2] and "=-2021" not in str(execution_response[2])) or not execution_response[2]:
-                break
-            time.sleep(1)
-        if not execution_response[0]:
-            order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1_M",
-                            "_order_type": FUTURE_ORDER_TYPE_MARKET}
-            execution_response = order(**order_params)
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+        order_response = order(**order_params)
     elif orderType == '3':
         try:
             origOrder = client.futures_get_order(
@@ -319,120 +316,41 @@ def webhook():
         initial_capital = float(client.futures_account()[
                                 'assets'][3]['walletBalance'])
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
-        qty_price = float(str(data['strategy']['order_price'])[:7])
-        last_price = float(client.futures_ticker(
-            symbol=symbol)['lastPrice'])
-        # OrderId = data['strategy']['alert_message']['OrderId'].upper()
-        # quantity = float(round_down(initial_capital / last_price if (initial_capital * risk / SL_diff * last_price >
-        #                                                              initial_capital) else initial_capital * risk / SL_diff, stepsize))
-        halfQty = float(step_round.format((initial_capital / qty_price) / 2 if (initial_capital * risk / SL_diff * qty_price >
+        tv_price = float(str(data['strategy']['order_price'])[:7])
+        halfQty = float(step_round.format((initial_capital / tv_price) / 2 if (initial_capital * risk / SL_diff * tv_price >
                                                                                 initial_capital) else (initial_capital * risk / SL_diff) / 2))
         quantity = float(step_round.format(halfQty + halfQty))
-        # halfQty_1 = float("0."+(int(str(quantity)[2:]) / 2).replace(".", ""))
-        # halfQty_1 = float(round_down(quantity / 2.0, stepsize))
-        # halfQty_2 = float(round_down(quantity - halfQty_1, stepsize))
-        # halfQty_2 = halfQty_2 if halfQty_1 + halfQty_2 == quantity else float(round_down(
-        #     halfQty_2 + float(round_down(quantity - halfQty_1 - halfQty_2, stepsize)), stepsize))
-    # ——————————————————————————————[End]———————————————————————————————————————
-        if side == 0:
-            SL = round(last_price - SL_diff, ticksize)
-            TP1 = round(last_price + SL_diff, ticksize)
-            TP2 = round(last_price + SL_diff * 2.0, ticksize)
-            SL_stop_price = round(SL + SL_diff * 0.05, ticksize)
-            TP1_stop_price = round(TP1 - SL_diff * 0.05, ticksize)
-            TP2_stop_price = round(TP2 - SL_diff * 0.05, ticksize)
-        else:
-            SL = round(last_price + SL_diff, ticksize)
-            TP1 = round(last_price - SL_diff, ticksize)
-            TP2 = round(last_price - SL_diff * 2.0, ticksize)
-            SL_stop_price = round(SL - SL_diff * 0.05, ticksize)
-            TP1_stop_price = round(TP1 + SL_diff * 0.05, ticksize)
-            TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
-        # order_params_1 = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
-        #                    "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-        filled = 0
-        while filled < 20:
-            filled += 1
-            if filled == 10:
-                asksbids = not asksbids
-            order_price = float(client.futures_order_book(
-                symbol=symbol, limit=5)[ASKSBIDS[asksbids]][0][0]) 
-            slip_effi = 0.02
-            if abs(order_price - qty_price) / qty_price > slip_effi:
-                continue
-            order_params_1 = {"_side": SIDE[side], "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
-                               "_price": order_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-            order_response = order(**order_params_1)
-            time.sleep(0.5)
-            if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['status'] == 'FILLED':
-                print(client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['avgPrice'])
-                print(filled)
-                break
-            
+        order_params_1 = {"_side": SIDE[side], "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+                                "_tv_price" : tv_price,"_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC", "_asksbids" : asksbids}
+        order_response = order(**order_params_1)        
         
-
-        # order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
-        #                    "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
-        # order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',  # One
-        #                     "_price": TP1, "_stopPrice": TP1_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-        # order_params_TP2 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_T',  # Two
-        #                     "_price": TP2, "_stopPrice": TP2_stop_price, "_order_type": FUTURE_ORDER_TYPE_TAKE_PROFIT}
-
-        # filled = 0
-        # # print(OrderId+'_'+order_uuid + '_F')
-        # while filled < 12:
-        #     if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
-        #         break
-        #     print(
-        #         f"Limit order hasn't been filled yet.Wait for 5 sec. {filled * 5} sec")
-        #     filled += 1
-        #     time.sleep(5)
-        # if filled != 12 or client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_'+order_uuid + '_F')["status"] == "FILLED":
-        #     order_response_PO[0] = True
-        #     for i in range(5):
-        #         order_response_SL = order(**order_params_SL)
-        #         if (order_response_SL[2] and "=-2021" not in str(order_response_SL[2])) or not order_response_SL[2]:
-        #             break
-        #         time.sleep(1)
-        #     if order_response_SL[0]:
-        #         for i in range(5):
-        #             order_response_TP1 = order(**order_params_TP1)
-        #             if (order_response_TP1[2] and "=-2021" not in str(order_response_TP1[2])) or not order_response_TP1[2]:
-        #                 break
-        #             time.sleep(1)
-        #     if order_response_SL[0] and order_response_TP1[0]:
-        #         for i in range(5):
-        #             order_response_TP2 = order(**order_params_TP2)
-        #             if (order_response_TP2[2] and "=-2021" not in str(order_response_TP2[2])) or not order_response_TP2[2]:
-        #                 break
-        #             time.sleep(1)
-
     if order_response:
         return {
             "code": "success",
             "message": "order executed"
         }
     else:
-        print("order failed")
-        origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
-                                            "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
-        origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
-        client.futures_cancel_orders(
-            symbol=symbol, origClientOrderIdList=origClientOrderIdList)
-        theorder = client.futures_get_order(
-            symbol=symbol, origClientOrderId=OrderId+"_"+order_uuid+"_F")
-        position2close = abs(float(theorder["executedQty"]))
-        side2close = theorder["side"]
-        print(position2close)
-        close_order = [True, "position = 0"]
-        if position2close != '0':
-            _orderId_tmp = f"ErrCls_qty_{position2close}_exc"
-            print(_orderId_tmp)
-            order_params_close_all = {"_side": "SELL" if side2close == "BUY" else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
-                                      "_order_type": FUTURE_ORDER_TYPE_MARKET}
-            close_order = order(**order_params_close_all)
-        return {
-            "code": "error",
-            "message": "order failed",
-            "close_order_response": close_order[1]
-        }
+        return 
+        # print("order failed")
+        # origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
+        #                                     "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
+        # origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
+        # client.futures_cancel_orders(
+        #     symbol=symbol, origClientOrderIdList=origClientOrderIdList)
+        # theorder = client.futures_get_order(
+        #     symbol=symbol, origClientOrderId=OrderId+"_"+order_uuid+"_F")
+        # position2close = abs(float(theorder["executedQty"]))
+        # side2close = theorder["side"]
+        # print(position2close)
+        # close_order = [True, "position = 0"]
+        # if position2close != '0':
+        #     _orderId_tmp = f"ErrCls_qty_{position2close}_exc"
+        #     print(_orderId_tmp)
+        #     order_params_close_all = {"_side": "SELL" if side2close == "BUY" else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
+        #                               "_order_type": FUTURE_ORDER_TYPE_MARKET}
+        #     close_order = order(**order_params_close_all)
+        # return {
+        #     "code": "error",
+        #     "message": "order failed",
+        #     "close_order_response": close_order[1]
+        # }

@@ -29,12 +29,19 @@ app = Flask(__name__)
 client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
 ASKSBIDS = ['asks', 'bids']
+SIDE = ['BUY', 'SELL']
 # app.config['MONGO_URI'] = config.MONGO_URL
 # client_mongo = MongoClient(config.MONGO_URL)
 # db = client_mongo.get_database('myBinanceBot')
 # db_bar_index = db.bar_index
 
-
+def orderQuery(_symbol, _OrderId):
+    try:
+        return client.futures_get_order(
+            symbol=_symbol, origClientOrderId=_OrderId)
+    except:
+        print("order Query failed")
+        close_order = close_all(_symbol)
 def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC'):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
@@ -205,7 +212,11 @@ def test2():
     #     # time.sleep(1)
     return json.dumps(res[:2])
 
-
+# // orderType 0 denotes NA
+# // orderType 1 denotes place_order
+# // orderType 2, 3 denotes TP1, TP2
+# // orderType 4 denotes stop loss
+# // orderType 5 denotes change side
 @app.route('/webhook', methods=['POST'])  # if PO is not executed completely?
 def webhook():
     try:
@@ -222,46 +233,36 @@ def webhook():
     except:
         return json.dumps(["Decline"])
     OrderId = data['strategy']['alert_message']["origOrderId"].upper()
-    myOrderType = data['strategy']['alert_message']['orderType']
+    orderType = data['strategy']['alert_message']['orderType']
     symbol = data['ticker'].replace('PERP', '')
     ticksize = 1 if symbol == "BTCUSDT" else 2
     step_round = "{:.3f}"
-    side = data['strategy']['order_action'].upper()
-    asksbids = 0 if side == "SELL" else 1
+    side = 0 if data['strategy']['order_action'].upper() == "BUY" else 1    # 0 == buy; 1 == sell
+    asksbids = 0 if side == 1 else 1
     total_position = float(client.futures_position_information(
         symbol=symbol)[0]["positionAmt"])
-    price_mod = (10.0 if side == "BUY" else (-10.0)
-                 ) if symbol == "BTCUSDT" else (3.0 if side == "BUY" else (-3.0))
-    order_response_PO = [True, True, False]
-    order_response_SL = [True, True, False]
-    order_response_TP1 = [True, True, False]
-    order_response_TP2 = [True, True, False]
-    order_uuid = str(uuid.uuid1().hex)
-    if myOrderType == 'TP1':
-        try:
-            origOrder = client.futures_get_order(
-                symbol=symbol, origClientOrderId=OrderId)
-        except:
-            print("order Query failed")
-            close_order = close_all(symbol)
-            return {
-                "code": "error",
-                "message": "order Query failed",
-                "close_order_response": close_order[1]
-            }
+    price_mod = (10.0 if side == 0 else (-10.0)
+                 ) if symbol == "BTCUSDT" else (3.0 if side == 0 else (-3.0))
+    order_response = True
+    # order_response_SL = [True, True, False]
+    # order_response_TP1 = [True, True, False]
+    # order_response_TP2 = [True, True, False]
+    # order_uuid = str(uuid.uuid1().hex)
+    if orderType == '2':
+        origOrder = orderQuery(symbol, OrderId)
         last_price = float(client.futures_ticker(symbol=symbol)['lastPrice'])
-        order_params = {"_side": side, "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1",
-                        "_price": round_down(float(last_price), ticksize), "_order_type": FUTURE_ORDER_TYPE_LIMIT}
+        order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_2",
+                        "_price": round_down(float(last_price), ticksize), "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
         for i in range(3):  # 這是一定要掛不是一定要賣
             execution_response = order(**order_params)
             if (execution_response[2] and "=-2021" not in str(execution_response[2])) or not execution_response[2]:
                 break
             time.sleep(1)
         if not execution_response[0]:
-            order_params = {"_side": side, "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1_M",
+            order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_TP1_M",
                             "_order_type": FUTURE_ORDER_TYPE_MARKET}
             execution_response = order(**order_params)
-    elif myOrderType == 'TP2':
+    elif orderType == '3':
         try:
             origOrder = client.futures_get_order(
                 symbol=symbol, origClientOrderId=OrderId)
@@ -289,17 +290,17 @@ def webhook():
                     "close_order_response": close_order[1]
                 }
 
-    elif myOrderType != 'PLACE_ORDER':
+    elif orderType == '0':
         print("\n\n Not PLACE_ORDER \n\n")
         return {
             "code": "error",
             "message": "NA"
         }
-    # elif myOrderType = "CHANGE_SIDE":
+    # elif orderType = "CHANGE_SIDE":
 
     # ———————————————————————————[variables]————————————————————————————————————
-    else:   # place order's orderID : L_{timestamp}_1  /  S_{timestamp}_1
-        if (total_position > 0 and side == "SELL") or (total_position < 0 and side == "BUY"):
+    elif orderType == '1':   # place order's orderID : L_{timestamp}_1  /  S_{timestamp}_1
+        if (total_position > 0 and side == 1) or (total_position < 0 and side == 0):
             print("\n\nCHANGE SIDE\n\n")
             orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
             client.futures_cancel_all_open_orders(symbol=symbol)
@@ -317,7 +318,6 @@ def webhook():
 
         initial_capital = float(client.futures_account()[
                                 'assets'][3]['walletBalance'])
-        oppsite_side = "BUY" if side == "SELL" else "SELL"
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
         qty_price = float(str(data['strategy']['order_price'])[:7])
         last_price = float(client.futures_ticker(
@@ -334,7 +334,7 @@ def webhook():
         # halfQty_2 = halfQty_2 if halfQty_1 + halfQty_2 == quantity else float(round_down(
         #     halfQty_2 + float(round_down(quantity - halfQty_1 - halfQty_2, stepsize)), stepsize))
     # ——————————————————————————————[End]———————————————————————————————————————
-        if side == "BUY":
+        if side == 0:
             SL = round(last_price - SL_diff, ticksize)
             TP1 = round(last_price + SL_diff, ticksize)
             TP2 = round(last_price + SL_diff * 2.0, ticksize)
@@ -348,7 +348,7 @@ def webhook():
             SL_stop_price = round(SL - SL_diff * 0.05, ticksize)
             TP1_stop_price = round(TP1 + SL_diff * 0.05, ticksize)
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
-        # order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+        # order_params_1 = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
         #                    "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
         filled = 0
         while filled < 20:
@@ -360,9 +360,9 @@ def webhook():
             slip_effi = 0.02
             if abs(order_price - qty_price) / qty_price > slip_effi:
                 continue
-            order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
+            order_params_1 = {"_side": SIDE[side], "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
                                "_price": order_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-            order_response_PO = order(**order_params_PO)
+            order_response = order(**order_params_1)
             time.sleep(0.5)
             if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['status'] == 'FILLED':
                 print(client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['avgPrice'])
@@ -407,7 +407,7 @@ def webhook():
         #                 break
         #             time.sleep(1)
 
-    if order_response_PO[0] and order_response_SL[0] and order_response_TP1[0] and order_response_TP2[0]:
+    if order_response:
         return {
             "code": "success",
             "message": "order executed"

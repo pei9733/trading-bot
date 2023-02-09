@@ -28,7 +28,7 @@ app = Flask(__name__)
 
 client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
-
+ASKSBIDS = ['asks', 'bids']
 # app.config['MONGO_URI'] = config.MONGO_URL
 # client_mongo = MongoClient(config.MONGO_URL)
 # db = client_mongo.get_database('myBinanceBot')
@@ -227,7 +227,7 @@ def webhook():
     ticksize = 1 if symbol == "BTCUSDT" else 2
     step_round = "{:.3f}"
     side = data['strategy']['order_action'].upper()
-    asksbids = "asks" if side == "SELL" else "bids"
+    asksbids = 0 if side == "SELL" else 1
     total_position = float(client.futures_position_information(
         symbol=symbol)[0]["positionAmt"])
     price_mod = (10.0 if side == "BUY" else (-10.0)
@@ -350,16 +350,27 @@ def webhook():
             TP2_stop_price = round(TP2 + SL_diff * 0.05, ticksize)
         # order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
         #                    "_price": last_price + price_mod, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
-        for i in range(10):
-            order_price = client.futures_order_book(
-                symbol=symbol, limit=5)[asksbids][0]
+        filled = 0
+        while filled < 20:
+            filled += 1
+            if filled == 10:
+                asksbids = not asksbids
+            order_price = float(client.futures_order_book(
+                symbol=symbol, limit=5)[ASKSBIDS[asksbids]][0][0]) 
             slip_effi = 0.02
-            if abs(order_price - qty_price) / qty_price > 0.02:
+            if abs(order_price - qty_price) / qty_price > slip_effi:
                 continue
             order_params_PO = {"_side": side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_1',   # First
                                "_price": order_price, "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif": "IOC"}
             order_response_PO = order(**order_params_PO)
-            print(order_response_PO)
+            time.sleep(0.5)
+            if client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['status'] == 'FILLED':
+                print(client.futures_get_order(symbol=symbol, origClientOrderId=OrderId+'_1')['avgPrice'])
+                print(filled)
+                break
+            
+        
+
         # order_params_SL = {"_side": oppsite_side, "_quantity": quantity, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_S',  # Stop Loss
         #                    "_price": SL, "_stopPrice": SL_stop_price, "_order_type": FUTURE_ORDER_TYPE_STOP}
         # order_params_TP1 = {"_side": oppsite_side, "_quantity": halfQty, "_symbol": symbol, "_OrderId": OrderId+'_'+order_uuid+'_O',  # One

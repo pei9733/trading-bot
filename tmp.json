@@ -2,20 +2,18 @@
 	"passphrase": "*NqLUQiLM8Zym3A",
 	"ticker": "ETHUSDTPERP",
 	"strategy": {
-		"position_size": -0.505,
+		"position_size": 0.306,
 		"order_action": "sell",
-		"order_contracts": 0.101,
-		"order_price": 1632,
-		"order_id": "S1_2",
-		"market_position": "short",
-		"market_position_size": 0.505,
-		"prev_market_position": "short",
-		"prev_market_position_size": 0.404,
+		"order_contracts": 0.102,
+		"order_price": 1644.1100000000001,
+		"order_id": "xL1_2",
+		"market_position": "long",
+		"market_position_size": 0.306,
+		"prev_market_position": "long",
+		"prev_market_position_size": 0.408,
 		"alert_message": {
-			"SL_diff": "2.1072747106",
-			"SL": "1634.1072747106",
-			"origOrderId": "S_16759393.8",
-			"orderType": "1"
+			"origOrderId": "L_16759525.2",
+			"orderType": "2"
 		}
 	}
 }

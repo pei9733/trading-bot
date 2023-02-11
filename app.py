@@ -40,9 +40,13 @@ def orderQuery(_symbol, _OrderId):
     try:
         return client.futures_get_order(
             symbol=_symbol, origClientOrderId=_OrderId)
-    except:
-        print("order Query failed")
-        close_order = close_all(_symbol)
+    except Exception as e:
+        if '2013' in str(e):
+            print(f"order {_OrderId} does not exist")
+        else:
+            print("order Query failed")
+            close_order = close_all(_symbol)
+            return False
 def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price = 0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC', _asksbids = 0, _force = False):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
@@ -59,6 +63,7 @@ def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price 
                 symbol=_symbol, side=_side, type=_order_type, price=order_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif)
             time.sleep(0.5)
             if client.futures_get_order(symbol=_symbol, origClientOrderId=_OrderId)['status'] == 'FILLED':
+                print(_OrderId)
                 print(client.futures_get_order(symbol=_symbol, origClientOrderId=_OrderId)['avgPrice'])
                 print(filled)
                 break
@@ -114,6 +119,12 @@ def welcome():
 def test():
     # return client.futures_ticker(symbol="BTCUSDT")['lastPrice']  # last price
     # return client.futures_position_information(symbol="BTCUSDT")  # last price
+    try:
+        client.futures_get_order(symbol = "ETHUSDT",origClientOrderId='dne')
+    except Exception as e:
+        print('2013' in str(e))
+    # print('2013' in str(client.futures_get_order(symbol = "ETHUSDT",origClientOrderId='dne')))
+    # return json.dumps(client.futures_get_order(symbol = "ETHUSDT",origClientOrderId='dne'))
     return(json.dumps(client.futures_order_book(symbol="BTCUSDT", limit=5)['asks'][0]))
 
     # data = json.loads(request.data)
@@ -254,39 +265,42 @@ def webhook():
     # order_response_TP1 = [True, True, False]
     # order_response_TP2 = [True, True, False]
     # order_uuid = str(uuid.uuid1().hex)
-    if orderType == '2':
-        origOrder = orderQuery(symbol, OrderId)
+    if orderType == '2':    # TP1
+        origOrder = orderQuery(symbol, OrderId+'_1')
+        if not origOrder:
+            return {
+            "code": "error",
+            "message": "TP1 query failed"
+        }
         order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_2",
                         "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
         order_response = order(**order_params)
-    elif orderType == '3':
-        try:
-            origOrder = client.futures_get_order(
-                symbol=symbol, origClientOrderId=OrderId)
-        except:
-            print("order Query failed")
-            close_order = close_all(symbol)
+    elif orderType == '3':  # TP2
+        origOrder_1 = orderQuery(symbol, OrderId+'_1')
+        origOrder_2 = orderQuery(symbol, OrderId+'_2')
+        if not origOrder_1 or not origOrder_2:
             return {
-                "code": "error",
-                "message": "order Query failed",
-                "close_order_response": close_order[1]
-            }
-        try:
-            order_TP1 = client.futures_get_order(
-                symbol=symbol, origClientOrderId=OrderId + '_TP1')
-        except:
-            try:
-                order_TP1 = client.futures_get_order(
-                    symbol=symbol, origClientOrderId=OrderId + '_TP1_M')
-            except:
-                print("order Query failed")
-                close_order = close_all(symbol)
-                return {
-                    "code": "error",
-                    "message": "order Query failed",
-                    "close_order_response": close_order[1]
-                }
-
+            "code": "error",
+            "message": "TP2 query failed"
+        }
+        order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder_1["executedQty"]))-float(origOrder_2["executedQty"])), "_symbol": symbol, "_OrderId": OrderId + "_3",
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+        order_response = order(**order_params)
+    elif orderType == '4':    # SL
+        origOrder_1 = orderQuery(symbol, OrderId+'_1')
+        origOrder_2 = orderQuery(symbol, OrderId+'_2')
+        if not origOrder_1:
+            return {
+            "code": "error",
+            "message": "SL: order_1 query failed"
+        }
+        if origOrder_2:
+            qty = float(step_round.format(float(origOrder_1["executedQty"]))-float(origOrder_2["executedQty"]))
+        else:
+            qty = float(step_round.format(float(origOrder["executedQty"])))
+        order_params = {"_side": SIDE[side], "_quantity": qty, "_symbol": symbol, "_OrderId": OrderId + "_4",
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+        order_response = order(**order_params)
     elif orderType == '0':
         print("\n\n Not PLACE_ORDER \n\n")
         return {
@@ -316,7 +330,7 @@ def webhook():
         initial_capital = float(client.futures_account()[
                                 'assets'][3]['walletBalance'])
         SL_diff = float(data['strategy']['alert_message']['SL_diff'])
-        tv_price = float(str(data['strategy']['order_price'])[:7])
+        tv_price = float(str(data['strategy']['order_price'])[:6 + ticksize])
         halfQty = float(step_round.format((initial_capital / tv_price) / 2 if (initial_capital * risk / SL_diff * tv_price >
                                                                                 initial_capital) else (initial_capital * risk / SL_diff) / 2))
         quantity = float(step_round.format(halfQty + halfQty))

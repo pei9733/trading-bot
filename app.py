@@ -29,7 +29,7 @@ app = Flask(__name__)
 client = Client(config.API_KEY, config.API_SECRET, testnet=True)
 
 ASKSBIDS = ['asks', 'bids']
-SIDE = ['BUY', 'SELL']
+SIDE = ['BUY', 'SELL']  # buy = 0, sell = 1
 slip_effi = 0.02
 # app.config['MONGO_URI'] = config.MONGO_URL
 # client_mongo = MongoClient(config.MONGO_URL)
@@ -47,7 +47,7 @@ def orderQuery(_symbol, _OrderId):
             print("order Query failed")
             close_order = close_all(_symbol)
             return False
-def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price = 0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC', _asksbids = 0, _force = False):
+def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price = 0.0, _stopPrice=0.0, _order_type=FUTURE_ORDER_TYPE_LIMIT, _tif='GTC', _asksbids = 0, _force = False, _reduceOnly = False):
     try:
         print(f"sending order {_order_type} - {_side} {_quantity} {_symbol}")
         filled = 0
@@ -58,9 +58,10 @@ def order(_side="", _quantity=0.0, _symbol="", _OrderId="", _price=0, _tv_price 
             order_price = float(client.futures_order_book(
                 symbol=_symbol, limit=5)[ASKSBIDS[_asksbids]][0][0]) 
             if _tv_price != 0 and abs(order_price - _tv_price) / _tv_price > slip_effi:
+                time.sleep(0.5)
                 continue
             order_response = client.futures_create_order(
-                symbol=_symbol, side=_side, type=_order_type, price=order_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif)
+                symbol=_symbol, side=_side, type=_order_type, price=order_price, quantity=_quantity, newClientOrderId=_OrderId, timeInForce=_tif, reduceOnly = _reduceOnly)
             time.sleep(0.5)
             if client.futures_get_order(symbol=_symbol, origClientOrderId=_OrderId)['status'] == 'FILLED':
                 print(_OrderId)
@@ -273,7 +274,7 @@ def webhook():
             "message": "TP1 query failed"
         }
         order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder["executedQty"]) / 2.0)), "_symbol": symbol, "_OrderId": OrderId + "_2",
-                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC", "_force" : True}
         order_response = order(**order_params)
     elif orderType == '3':  # TP2
         origOrder_1 = orderQuery(symbol, OrderId+'_1')
@@ -284,7 +285,7 @@ def webhook():
             "message": "TP2 query failed"
         }
         order_params = {"_side": SIDE[side], "_quantity": float(step_round.format(float(origOrder_1["executedQty"]))-float(origOrder_2["executedQty"])), "_symbol": symbol, "_OrderId": OrderId + "_3",
-                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC", "_force" : True}
         order_response = order(**order_params)
     elif orderType == '4':    # SL
         origOrder_1 = orderQuery(symbol, OrderId+'_1')
@@ -299,12 +300,12 @@ def webhook():
         else:
             qty = float(step_round.format(float(origOrder["executedQty"])))
         order_params = {"_side": SIDE[side], "_quantity": qty, "_symbol": symbol, "_OrderId": OrderId + "_4",
-                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC"}
+                        "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC", "_force" : True}
         order_response = order(**order_params)
     elif orderType == '0':
-        print("\n\n Not PLACE_ORDER \n\n")
+        print("\n\n NA \n\n")
         return {
-            "code": "error",
+            "code": "None",
             "message": "NA"
         }
     # elif orderType = "CHANGE_SIDE":
@@ -314,17 +315,15 @@ def webhook():
         if (total_position > 0 and side == 1) or (total_position < 0 and side == 0):
             print("\n\nCHANGE SIDE\n\n")
             orderid_tmp = "xLbyShort" if total_position > 0 else "xSbyLong"
-            client.futures_cancel_all_open_orders(symbol=symbol)
-            total_position = float(client.futures_position_information(
-                symbol=symbol)[0]["positionAmt"])
-            order_params_close_all = {"_side": "SELL" if total_position > 0 else "BUY", "_quantity": abs(total_position), "_symbol": symbol, "_OrderId": orderid_tmp,
-                                      "_order_type": FUTURE_ORDER_TYPE_MARKET}
+            order_params_close_all = {"_side": SIDE[side], "_quantity": abs(total_position), "_symbol": symbol, "_OrderId": orderid_tmp,
+                                    "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC", "_force" : True, "_reduceOnly" : True}
             close_order = order(**order_params_close_all)
+            print(close_order)
         print("\n\nPLACE_ORDER\n\n")
         risk = 0.01
-        SL = 0.0
-        TP1 = 0.0
-        TP2 = 0.0
+        # SL = 0.0
+        # TP1 = 0.0
+        # TP2 = 0.0
         # return data
 
         initial_capital = float(client.futures_account()[

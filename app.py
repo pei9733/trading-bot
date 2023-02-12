@@ -213,7 +213,7 @@ def test2():
     # print(type(client.futures_get_order(symbol="BTCUSDT",
     #       origClientOrderId="L_8bf2179126e611edb0c840ec99c99f2c_S")["time"]))
     # return json.dumps(cancel_order("BTCUSDT", "L_0b20bc4f29c411eda43b40ec99c99f2c_T"))
-
+    return json.dumps(close_all("ETHUSDT"))
     list_ = client.futures_get_all_orders(symbol="BTCUSDT")
     print(datetime.fromtimestamp(int(list_[0]['time']/1000)))
     for i in list_:
@@ -341,27 +341,9 @@ def webhook():
             "message": "order executed"
         }
     else:
-        return 
-        # print("order failed")
-        # origClientOrderIdList = json.dumps([OrderId+"_"+order_uuid+"_F", OrderId+"_"+order_uuid +
-        #                                     "_S", OrderId+"_"+order_uuid+"_O", OrderId+"_"+order_uuid+"_T"]).replace(" ", "")
-        # origClientOrderIdList = urllib.parse.quote(origClientOrderIdList)
-        # client.futures_cancel_orders(
-        #     symbol=symbol, origClientOrderIdList=origClientOrderIdList)
-        # theorder = client.futures_get_order(
-        #     symbol=symbol, origClientOrderId=OrderId+"_"+order_uuid+"_F")
-        # position2close = abs(float(theorder["executedQty"]))
-        # side2close = theorder["side"]
-        # print(position2close)
-        # close_order = [True, "position = 0"]
-        # if position2close != '0':
-        #     _orderId_tmp = f"ErrCls_qty_{position2close}_exc"
-        #     print(_orderId_tmp)
-        #     order_params_close_all = {"_side": "SELL" if side2close == "BUY" else "BUY", "_quantity": position2close, "_symbol": symbol, "_OrderId": _orderId_tmp,
-        #                               "_order_type": FUTURE_ORDER_TYPE_MARKET}
-        #     close_order = order(**order_params_close_all)
-        # return {
-        #     "code": "error",
-        #     "message": "order failed",
-        #     "close_order_response": close_order[1]
-        # }
+        print("order failed")
+        close_all(symbol)
+        return {
+            "code": "error",
+            "message": "order failed",
+        }

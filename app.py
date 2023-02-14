@@ -273,11 +273,17 @@ def webhook():
         return json.dumps(["Decline"])
     orderType = data['strategy']['alert_message']['orderType']
     if orderType == '0':
-            print("\n\n NA \n\n")
-            return {
-                "code": "None",
-                "message": "NA"
-            }
+        print("\n\n NA \n\n")
+        return {
+            "code": "None",
+            "message": "NA"
+        }
+    elif orderType == '5':
+        print("\n\n CHANGE SIDE \n\n")
+        return {
+            "code": "None",
+            "message": "change side"
+        }
     OrderId = data['strategy']['alert_message']["origOrderId"].upper()
     
     symbol = data['ticker'].replace('PERP', '')

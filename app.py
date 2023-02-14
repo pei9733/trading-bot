@@ -273,8 +273,15 @@ def webhook():
             }
     except:
         return json.dumps(["Decline"])
-    OrderId = data['strategy']['alert_message']["origOrderId"].upper()
     orderType = data['strategy']['alert_message']['orderType']
+    if orderType == '0':
+            print("\n\n NA \n\n")
+            return {
+                "code": "None",
+                "message": "NA"
+            }
+    OrderId = data['strategy']['alert_message']["origOrderId"].upper()
+    
     symbol = data['ticker'].replace('PERP', '')
     ticksize = 1 if symbol == "BTCUSDT" else 2
     side = 0 if data['strategy']['order_action'].upper() == "BUY" else 1    # 0 == buy; 1 == sell
@@ -306,12 +313,7 @@ def webhook():
         order_params = {"_side": SIDE[side], "_quantity": executedQty, "_symbol": symbol, "_OrderId": OrderId + "_4",
                         "_order_type": FUTURE_ORDER_TYPE_LIMIT, "_tif":"IOC", "_asksbids" : asksbids, "_force" : True, "_reduceOnly" : True}
         order_response = order(**order_params)
-    elif orderType == '0':
-        print("\n\n NA \n\n")
-        return {
-            "code": "None",
-            "message": "NA"
-        }
+    
     # ———————————————————————————[variables]————————————————————————————————————
     elif orderType == '1':   # place order's orderID : L_{timestamp}_1  /  S_{timestamp}_1
         if (total_position > 0 and side == 1) or (total_position < 0 and side == 0):

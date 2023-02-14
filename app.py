@@ -1,5 +1,4 @@
 # 1,756.60706173 9/5 0226
-from pymongo import MongoClient
 import asyncio
 import json
 import config
@@ -8,7 +7,6 @@ from binance.client import AsyncClient, Client
 from binance import BinanceSocketManager
 from binance.enums import *
 import decimal
-import uuid
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import urllib.parse
